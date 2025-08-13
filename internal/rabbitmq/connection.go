@@ -2,12 +2,15 @@ package rabbitmq
 
 import (
 	"log"
-
 	amqp "github.com/rabbitmq/amqp091-go"
 	"rabbitmq-app/config"
 )
 
-func Connect() (*amqp.Connection, *amqp.Channel) {
+type ChannelWrapper struct {
+	Channel *amqp.Channel
+}
+
+func Connect() (*amqp.Connection, *ChannelWrapper) {
 	conn, err := amqp.Dial(config.RabbitURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
@@ -17,5 +20,5 @@ func Connect() (*amqp.Connection, *amqp.Channel) {
 		conn.Close()
 		log.Fatalf("Failed to open channel: %v", err)
 	}
-	return conn, ch
+	return conn, &ChannelWrapper{Channel: ch}
 }

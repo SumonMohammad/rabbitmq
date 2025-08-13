@@ -2,12 +2,11 @@ package rabbitmq
 
 import (
 	"log"
-
-	amqp "github.com/rabbitmq/amqp091-go"
+	amqp"github.com/rabbitmq/amqp091-go"
 	"rabbitmq-app/config"
 )
 
-func DeclareAll(ch *amqp.Channel) {
+func DeclareAll(ch *amqp.Channel) error {
 	// 1) main direct exchange
 	err := ch.ExchangeDeclare(
 		config.ExchangeMain,
@@ -41,10 +40,14 @@ func DeclareAll(ch *amqp.Channel) {
 		log.Fatalf("ExchangeDeclare delayed failed: %v", err)
 	}
 
-	// 4) main queue
+	// 4) main queue with dead letter configuration
+	queueArgs := amqp.Table{
+		"x-dead-letter-exchange":    config.ExchangeDead,
+		"x-dead-letter-routing-key": "dead",
+	}
 	_, err = ch.QueueDeclare(
 		config.MainQueue,
-		true,  false, false, false, nil,
+		true, false, false, false, queueArgs,
 	)
 	if err != nil {
 		log.Fatalf("QueueDeclare main failed: %v", err)
@@ -66,6 +69,10 @@ func DeclareAll(ch *amqp.Channel) {
 	if err := ch.QueueBind(config.DeadQueue, "dead", config.ExchangeDead, false, nil); err != nil {
 		log.Fatalf("QueueBind dead failed: %v", err)
 	}
+	if err := ch.QueueBind(config.MainQueue, config.RoutingKey, config.ExchangeDelayed, false, nil); err != nil {
+		log.Fatalf("QueueBind delayed failed: %v", err)
+	}
 
 	log.Println("Declared exchanges & queues (main, delayed, dead) successfully")
+	return nil
 }

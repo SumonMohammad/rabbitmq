@@ -2,16 +2,21 @@ package consumer
 
 import (
 	"log"
-
-	amqp "github.com/rabbitmq/amqp091-go"
+	//"github.com/rabbitmq/amqp091-go"
 	"rabbitmq-app/config"
+	"rabbitmq-app/internal/rabbitmq"
 )
 
-func Start(ch *amqp.Channel) {
-	msgs, err := ch.Consume(
+func Start(ch *rabbitmq.ChannelWrapper) {
+	err := ch.Channel.Qos(1, 0, false) // 1 message at a time
+	if err != nil {
+		log.Fatalf("Failed to set QoS: %v", err)
+	}
+
+	msgs, err := ch.Channel.Consume(
 		config.MainQueue,
 		"",
-		false, // manual ack
+		false,
 		false,
 		false,
 		false,
@@ -23,6 +28,6 @@ func Start(ch *amqp.Channel) {
 
 	log.Println("Consumer started, waiting for messages...")
 	for d := range msgs {
-		HandleDelivery(ch, d)
+		HandleDelivery(ch.Channel, d)
 	}
 }

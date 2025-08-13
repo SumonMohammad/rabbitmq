@@ -14,3 +14,5 @@ func Send(ch *rabbitmq.ChannelWrapper, body string) {
 	}
 	log.Printf("Sent immediate: %s", body)
 }
+
+

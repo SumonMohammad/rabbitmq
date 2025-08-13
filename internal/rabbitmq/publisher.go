@@ -4,11 +4,13 @@ import (
 	"context"
 	"log"
 
-	amqp "github.com/rabbitmq/amqp091-go"
 	"rabbitmq-app/config"
+
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 func PublishImmediate(ch *amqp.Channel, body string) error {
+	headers := amqp.Table{"x-retry": 0}
 	return ch.PublishWithContext(context.Background(),
 		config.ExchangeMain,
 		config.RoutingKey,
@@ -16,6 +18,7 @@ func PublishImmediate(ch *amqp.Channel, body string) error {
 		amqp.Publishing{
 			ContentType: "text/plain",
 			Body:        []byte(body),
+			Headers:     headers,
 		},
 	)
 }
@@ -24,7 +27,7 @@ func PublishWithDelay(ch *amqp.Channel, body string, delayMs int) error {
 	headers := amqp.Table{"x-delay": int32(delayMs)}
 	return ch.PublishWithContext(context.Background(),
 		config.ExchangeDelayed,
-		config.RoutingKey, // delayed exchange will re-publish to bound queues with same routing key
+		config.RoutingKey,
 		false, false,
 		amqp.Publishing{
 			Headers:     headers,

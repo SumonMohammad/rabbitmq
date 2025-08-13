@@ -9,9 +9,9 @@ import (
 func main() {
 	conn, ch := rabbitmq.Connect()
 	defer conn.Close()
-	defer ch.Close()
+	defer ch.Channel.Close()
 
-	rabbitmq.DeclareAll(ch)
+	rabbitmq.DeclareAll(ch.Channel)
 
 	log.Println("Starting consumer ...")
 	consumer.Start(ch)
