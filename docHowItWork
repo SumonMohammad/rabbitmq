@@ -1,0 +1,62 @@
+How it works (flow)
+cmd/producer publishes to app_exchange with routing key task — delivered to main_queue.
+
+cmd/consumer consumes from main_queue.
+
+If message processing fails (we use body == "fail" as demo), consumer inspects x-retry header:
+
+if retries < MaxRetries, it publishes the same message to delayed_exchange with headers:
+
+x-retry incremented
+
+x-delay in milliseconds (e.g. 5000*(attempt+1))
+
+delayed_exchange holds message for x-delay ms then routes it to bound queues (we bound main_queue to routing key), so message returns to main_queue.
+
+If x-retry >= MaxRetries, the message published to dead_exchange → dead_queue for manual inspection.
+
+Run steps
+Build & run RabbitMQ (with plugin):
+
+bash
+Copy
+Edit
+docker-compose up --build -d
+Verify plugin enabled: open http://localhost:15672 (guest/guest) and in Admin → Plugins you should see rabbitmq_delayed_message_exchange enabled (or run docker exec -it rabbitmq rabbitmq-plugins list).
+
+Run consumer (in project root):
+
+bash
+Copy
+Edit
+go run cmd/consumer/main.go
+In another terminal publish messages:
+
+bash
+Copy
+Edit
+# send a normal success message
+go run cmd/producer/main.go "hello"
+
+# send a message that will fail and be retried (demo logic treats "fail" as failing)
+go run cmd/producer/main.go "fail"
+Watch consumer logs:
+
+For "hello" you should see immediate processing success.
+
+For "fail" consumer will schedule delayed retries (first after 5s, then 10s, ...), and after MaxRetries it will go to dead_queue.
+
+Inspect dead_queue in management UI to see dead messages.
+
+Notes & small adjustments you may want
+I used config.RabbitURL = "amqp://guest:guest@localhost:5672/". If you run consumer/producer inside Docker network (as containers), change to amqp://guest:guest@rabbitmq:5672/.
+
+DeclareAll should be idempotent — safe to call on both producer & consumer startup.
+
+Real-world processing would use JSON messages and structured headers.
+
+Replace simplistic failure detection (body == "fail") with real error checking.
+
+Consider message durability (DeliveryMode: amqp.Persistent) if you want message survive broker restart.
+
+You may want to persist retry attempts in message headers or external store for more complex strategies.
